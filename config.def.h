@@ -187,6 +187,11 @@ static unsigned int defaultattr = 11;
 static uint forcemousemod = ShiftMask;
 
 /*
+ * Command used to query unicode glyphs.
+ */
+char *iso14755_cmd = "dmenu -w \"$WINDOWID\" -p codepoint: </dev/null";
+
+/*
  * Internal mouse shortcuts.
  * Beware that overloading Button1 will disable the selection.
  */
@@ -223,6 +228,7 @@ static Shortcut shortcuts[] = {
 	{ MODKEY|ShiftMask,     XK_J,           historyShiftY,  {.i =  1} },
 	{ MODKEY|ShiftMask,     XK_K,           historyShiftY,  {.i = -1} },
 	{ ControlMask|Mod1Mask, XK_l,           clearL,  		{} 		  },
+	{ TERMMOD,              XK_I,           iso14755,       {.i =  0} },
 };
 
 /*

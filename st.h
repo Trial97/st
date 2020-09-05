@@ -86,6 +86,7 @@ void historyShiftY(Arg const *ly);
 void historyQuit();
 void clearL(Arg const *ly);
 
+void iso14755(const Arg *);
 void printscreen(const Arg *);
 void printsel(const Arg *);
 void sendbreak(const Arg *);
@@ -130,3 +131,4 @@ extern unsigned int tabspaces;
 extern unsigned int defaultfg;
 extern unsigned int defaultbg;
 extern float alpha;
+extern char *iso14755_cmd;
