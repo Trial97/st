@@ -260,6 +260,7 @@ tinsync(uint timeout)
 		su = 0;
 	return su;
 }
+
 int buffCols;
 extern int const buffSize;
 int histOp, histMode, histOff, histOffX, insertOff, altToggle;
@@ -2695,7 +2696,10 @@ void historyShiftY(Arg const *y) {
 
 
 void clearL(Arg const*y){
-		treset();
-		resettitle();
-		xloadcols();
+	historyQuit();
+	buf=NULL;
+	tnew(term.col,term.row);
+	// treset();
+	resettitle();
+	xloadcols();
 }
