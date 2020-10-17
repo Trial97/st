@@ -2625,3 +2625,10 @@ void historyShiftY(Arg const *y) {
 	historyMove(0, 0, y->i);
 	if (insertOff == histOff) historyModeToggle(0);
 }
+
+
+void clearL(Arg const*y){
+		treset();
+		resettitle();
+		xloadcols();
+}

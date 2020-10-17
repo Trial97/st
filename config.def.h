@@ -205,6 +205,7 @@ static Shortcut shortcuts[] = {
 	{ MODKEY,               XK_i,           historyQuit,    {.i =  0} },
 	{ MODKEY|ShiftMask,     XK_J,           historyShiftY,  {.i =  1} },
 	{ MODKEY|ShiftMask,     XK_K,           historyShiftY,  {.i = -1} },
+	{ ControlMask|Mod1Mask, XK_l,           clearL,  		{} 		  },
 };
 
 /*

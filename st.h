@@ -84,6 +84,7 @@ void draw(void);
 
 void historyShiftY(Arg const *ly);
 void historyQuit();
+void clearL(Arg const *ly);
 
 void printscreen(const Arg *);
 void printsel(const Arg *);
