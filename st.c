@@ -264,7 +264,7 @@ tinsync(uint timeout)
 int buffCols;
 extern int const buffSize;
 int histOp, histMode, histOff, histOffX, insertOff, altToggle;
-Line *buf = NULL;
+Line *bufHist = NULL;
 static TCursor c[3];
 static inline int rows() { return IS_SET(MODE_ALTSCREEN) ? term.row : buffSize;}
 static inline int rangeY(int i) { while (i < 0) i += rows(); return i % rows();}
@@ -461,6 +461,21 @@ tlinelen(int y)
 	return i;
 }
 
+int
+tlinehistlen(int y)
+{
+	int i = term.col;
+
+	if (bufHist[y][i - 1].mode & ATTR_WRAP)
+		return i;
+
+	while (i > 0 && bufHist[y][i - 1].u == ' ')
+		--i;
+
+	return i;
+}
+
+
 void historyOpToggle(int start, int paint) {
 	if (!histOp == !(histOp + start)) if ((histOp += start) || 1) return;
 	if (histMode && paint && (!IS_SET(MODE_ALTSCREEN) || altToggle)) draw();
@@ -471,7 +486,7 @@ void historyOpToggle(int start, int paint) {
 		memset(term.dirty,0,sizeof(*term.dirty)*term.row);
 	}
 	tcursor(CURSOR_LOAD);
-	*(!IS_SET(MODE_ALTSCREEN)?&term.line:&term.alt)=&buf[histOp?histOff:insertOff];
+	*(!IS_SET(MODE_ALTSCREEN)?&term.line:&term.alt)=&bufHist[histOp?histOff:insertOff];
 }
 
 void historyModeToggle(int start) {
@@ -494,7 +509,7 @@ int historyBufferScroll(int n) {
 		memset(&term.dirty[n>0 ? r : 0], 0, s * p);
 	}
 	int const prevOffBuf = sel.alt ? 0 : insertOff + term.row;
-	term.line = &buf[*ptr = (buffSize+*ptr+n) % buffSize];
+	term.line = &bufHist[*ptr = (buffSize+*ptr+n) % buffSize];
 	// Cut part of selection removed from buffer, and update sel.ne/b.
 	if (sel.ob.x != -1 && !histOp && n) {
 		int const offBuf = sel.alt ? 0 : insertOff + term.row,
@@ -627,7 +642,7 @@ getsel(void)
 	int const start = sel.swap ? sel.oe.y : sel.ob.y, h = rows();
 	int endy = (sel.swap ? sel.ob.y : sel.oe.y);
 	for (; endy < start; endy += h);
-	Line * const cbuf = IS_SET(MODE_ALTSCREEN) ? term.line : buf;
+	Line * const cbuf = IS_SET(MODE_ALTSCREEN) ? term.line : bufHist;
 	bufsize = (term.col+1) * (endy-start+1 ) * UTF_SIZ;
 	assert(bufsize > 0);
 	ptr = str = xmalloc(bufsize);
@@ -751,8 +766,14 @@ sigchld(int a)
 	if ((p = waitpid(pid, &stat, WNOHANG)) < 0)
 		die("waiting for pid %hd failed: %s\n", pid, strerror(errno));
 
-	if (pid != p)
+	if (pid != p) {
+		if (p == 0 && wait(&stat) < 0)
+			die("wait: %s\n", strerror(errno));
+
+		/* reinstall sigchld handler */
+		signal(SIGCHLD, sigchld);
 		return;
+	}
 
 	if (WIFEXITED(stat) && WEXITSTATUS(stat))
 		die("child exited with status %d\n", WEXITSTATUS(stat));
@@ -1979,6 +2000,61 @@ strparse(void)
 }
 
 void
+externalpipe(const Arg *arg)
+{
+	int to[2];
+	char buf[UTF_SIZ];
+	void (*oldsigpipe)(int);
+	Glyph *bp, *end;
+	int lastpos, n, newline;
+
+	if (pipe(to) == -1)
+		return;
+
+	switch (fork()) {
+	case -1:
+		close(to[0]);
+		close(to[1]);
+		return;
+	case 0:
+		dup2(to[0], STDIN_FILENO);
+		close(to[0]);
+		close(to[1]);
+		execvp(((char **)arg->v)[0], (char **)arg->v);
+		fprintf(stderr, "st: execvp %s\n", ((char **)arg->v)[0]);
+		perror("failed");
+		exit(0);
+	}
+
+	close(to[0]);
+	/* ignore sigpipe for now, in case child exists early */
+	oldsigpipe = signal(SIGPIPE, SIG_IGN);
+	newline = 0;
+	for (n = 0; n < buffSize; n++) {
+		bp = bufHist[n];
+		lastpos = MIN(tlinehistlen(n) + 1, term.col) - 1;
+		if (lastpos < 0)
+			break;
+		if (lastpos == 0)
+	 		continue;
+		end = &bp[lastpos + 1];
+		for (; bp < end; ++bp)
+			if (xwrite(to[1], buf, utf8encode(bp->u, buf)) < 0)
+				break;
+		if ((newline = bufHist[n][lastpos].mode & ATTR_WRAP))
+			continue;
+		if (xwrite(to[1], "\n", 1) < 0)
+			break;
+		newline = 0;
+	}
+	if (newline)
+		(void)xwrite(to[1], "\n", 1);
+	close(to[1]);
+	/* restore */
+	signal(SIGPIPE, oldsigpipe);
+}
+
+void
 strdump(void)
 {
 	size_t i;
@@ -2544,7 +2620,7 @@ void
 tresize(int col, int row)
 {
 	int i;
-	int const colSet = col, alt = IS_SET(MODE_ALTSCREEN), ini = buf == NULL;
+	int const colSet = col, alt = IS_SET(MODE_ALTSCREEN), ini = bufHist == NULL;
 	col = MAX(col, buffCols);
 	row = MIN(row, buffSize);
 	int const minrow = MIN(row, term.row), mincol = MIN(col, buffCols);
@@ -2575,7 +2651,7 @@ tresize(int col, int row)
 	}
 
 	/* resize to new height */
-	buf = xrealloc(buf, (buffSize + row) * sizeof(Line));
+	bufHist = xrealloc(bufHist, (buffSize + row) * sizeof(Line));
 	term.alt  = xrealloc(term.alt,  row * sizeof(Line));
 	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
 	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
@@ -2600,11 +2676,11 @@ tresize(int col, int row)
 	}
 	Glyph g=(Glyph){.bg=term.c.attr.bg, .fg=term.c.attr.fg, .u=' ', .mode=0};
 	for (i = 0; i < buffSize; ++i) {
-		buf[i] = xrealloc(ini ? NULL : buf[i], col*sizeof(Glyph));
-		for (int j = ini ? 0 : buffCols; j < col; ++j) buf[i][j] = g;
+		bufHist	[i] = xrealloc(ini ? NULL : bufHist	[i], col*sizeof(Glyph));
+		for (int j = ini ? 0 : buffCols; j < col; ++j) bufHist[i][j] = g;
 	}
-	for (i = 0; i < row; ++i) buf[buffSize + i] = buf[i];
-	term.line = &buf[*(histOp?&histOff:&insertOff) +=MAX(term.c.y-row+1,0)];
+	for (i = 0; i < row; ++i) bufHist[buffSize + i] = bufHist[i];
+	term.line = &bufHist[*(histOp?&histOff:&insertOff) +=MAX(term.c.y-row+1,0)];
 	/* update terminal size */
 	term.col = colSet;
 	buffCols = col;
@@ -2697,7 +2773,7 @@ void historyShiftY(Arg const *y) {
 
 void clearL(Arg const*y){
 	historyQuit();
-	buf=NULL;
+	bufHist=NULL;
 	tnew(term.col,term.row);
 	// treset();
 	resettitle();

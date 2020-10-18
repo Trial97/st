@@ -96,6 +96,7 @@ void historyQuit();
 void clearL(Arg const *ly);
 
 void iso14755(const Arg *);
+void externalpipe(const Arg *);
 void printscreen(const Arg *);
 void printsel(const Arg *);
 void sendbreak(const Arg *);
