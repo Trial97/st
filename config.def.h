@@ -155,7 +155,7 @@ unsigned int defaultfg = 259;
 unsigned int defaultbg = 258;
 static unsigned int defaultcs = 256;
 static unsigned int defaultrcs = 257;
-unsigned int const currentBg = 8, buffSize = 255;
+unsigned int const currentBg = 8, buffSize = 20000;
 
 /*
  * https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h4-Functions-using-CSI-_-ordered-by-the-final-character-lparen-s-rparen:CSI-Ps-SP-q.1D81
@@ -293,12 +293,12 @@ static Shortcut shortcuts[] = {
 	{ ControlMask|Mod1Mask, XK_l,           clearL,  		{} 		  },
 	{ TERMMOD,              XK_I,           iso14755,       {.i =  0} },
 	
-	{ MODKEY,               XK_Page_Up,     historyShiftY,      {.i = -1} },
-	{ MODKEY,               XK_Page_Down,   historyShiftY,    {.i = 1} },
-	{ MODKEY,               XK_k,           historyShiftY,      {.i =  1} },
-	{ MODKEY,               XK_j,           historyShiftY,    {.i = 1} },
-	{ MODKEY,               XK_Up,          historyShiftY,      {.i =  1} },
-	{ MODKEY,               XK_Down,        historyShiftY,    {.i = 1} },
+	{ MODKEY,               XK_Page_Up,     historyShiftY,  {.i = -1} },
+	{ MODKEY,               XK_Page_Down,   historyShiftY,  {.i =  1} },
+	{ MODKEY,               XK_k,           historyShiftY,  {.i =  1} },
+	{ MODKEY,               XK_j,           historyShiftY,  {.i =  1} },
+	{ MODKEY,               XK_Up,          historyShiftY,  {.i =  1} },
+	{ MODKEY,               XK_Down,        historyShiftY,  {.i =  1} },
 	{ MODKEY,				XK_s,			changealpha,	{.f = -0.05} },
 	{ MODKEY,				XK_a,			changealpha,	{.f = +0.05} },
 	{ TERMMOD,              XK_Up,          zoom,           {.f = +1} },
